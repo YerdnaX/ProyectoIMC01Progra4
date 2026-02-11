@@ -1,6 +1,9 @@
 from Entidades.clasePersona import clasePersona
 import pandas as pandas
+from CapaDatos import claseXML, claseJSON
 listaPersonas = []
+# Ruta donde se guardan respaldos/archivos del sistema
+rutaSistema = claseXML.cargarRutaSistema()
 
 
 ##Agrega Persona a la lista, ya la info viene validada :D
@@ -14,6 +17,41 @@ def agregarPersona(id, nombre, edad, genero, peso, estatura):
 def eliminarPersona(id):
     global listaPersonas
     listaPersonas = [p for p in listaPersonas if p.id != id]
+
+def establecerRutaSistema(ruta: str):
+    global rutaSistema
+    claseXML.guardarRutaSistema(ruta)
+    rutaSistema = ruta
+    return ruta
+
+def obtenerRutaSistema():
+    return claseXML.cargarRutaSistema()
+
+
+def _persona_a_dict(p: clasePersona):
+    return {
+        "id": p.id,
+        "nombre": p.nombre,
+        "edad": p.edad,
+        "genero": p.genero,
+        "peso": p.peso,
+        "estatura": p.estatura,
+        "imc": p.imcCalculado,
+        "estado": p.estado,
+    }
+
+
+def guardarInformacionArchivos():
+    """
+    Guarda la información en memoria a JSON y XML en la ruta configurada.
+    Devuelve las rutas de los archivos creados.
+    """
+    ruta = obtenerRutaSistema()
+    if not ruta:
+        raise ValueError("No hay ruta del sistema configurada. Configure una carpeta antes de guardar.")
+    archivo_json = claseJSON.guardarListaPersonas(listaPersonas, ruta)
+    archivo_xml = claseXML.guardarListaPersonas(listaPersonas, ruta)
+    return archivo_json, archivo_xml
     
 ##Retorna el IMC de una persona
 def calcularIMC(peso, estatura) -> float:

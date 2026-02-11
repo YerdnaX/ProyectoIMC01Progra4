@@ -24,6 +24,7 @@ class VentanaPrincipal(ctk.CTk):
         self._closing = False
         self._after_id = None
         self.filtro_id = None
+        self.ruta_label_var = ctk.StringVar(value=sistema.obtenerRutaSistema() or "Ruta no configurada")
         self.construirMenu()
         self.construirFormulario()
         self.construirTabla()
@@ -336,6 +337,11 @@ class VentanaPrincipal(ctk.CTk):
         canvas_frame = ctk.CTkFrame(ventana, fg_color=("gray12"))
         canvas_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
+        ruta_frame = ctk.CTkFrame(canvas_frame, fg_color=("gray12"))
+        ruta_frame.pack(fill="x", padx=6, pady=(0, 12))
+        ctk.CTkLabel(ruta_frame, text="Ruta actual:", width=100).pack(side="left", padx=4)
+        ctk.CTkLabel(ruta_frame, textvariable=self.ruta_label_var, text_color="lightgreen", anchor="w").pack(side="left", padx=4)
+
         def render(df: pd.DataFrame, titulo: str, label_col: str):
             for child in canvas_frame.winfo_children():
                 child.destroy()
@@ -372,7 +378,15 @@ class VentanaPrincipal(ctk.CTk):
     def configuracionSistema(self):
         self.abrirConfiguracionSistema()
     def guardarArchivos(self):
-        messagebox.showinfo("Guardar información", "Guardar información en archivos (pendiente de implementación).")
+        try:
+            archivo_json, archivo_xml = sistema.guardarInformacionArchivos()
+            self.msg_var.set("Respaldo guardado.")
+            messagebox.showinfo("Respaldo generado",
+                                f"Archivos creados:\nJSON: {archivo_json}\nXML: {archivo_xml}")
+        except ValueError as e:
+            messagebox.showwarning("Ruta no configurada", str(e))
+        except Exception as e:
+            messagebox.showerror("Error al guardar", f"No se pudo guardar el respaldo.\nDetalle: {e}")
 
     def cargarRespaldo(self):
         messagebox.showinfo("Cargar desde respaldo", "Cargar datos desde un respaldo (pendiente de implementación).")
@@ -380,40 +394,37 @@ class VentanaPrincipal(ctk.CTk):
 
     def abrirConfiguracionSistema(self):
         ventana = ctk.CTkToplevel(self)
-        ventana.title("Configuracion del sistema")
-        ventana.geometry("400x320")
-        ventana.resizable(True, False)
-        # traer al frente al abrir
+        ventana.title("Configuración del sistema")
+        ventana.geometry("480x200")
+        ventana.resizable(False, False)
         ventana.lift()
         ventana.focus_force()
         ventana.attributes("-topmost", True)
         ventana.after(200, lambda: ventana.attributes("-topmost", False))
 
-        btns = ctk.CTkFrame(ventana, fg_color=("gray12"))
-        btns.pack(fill="x", padx=10, pady=10)
+        cuerpo = ctk.CTkFrame(ventana, fg_color=("gray12"))
+        cuerpo.pack(fill="both", expand=True, padx=16, pady=16)
 
-        canvas_frame = ctk.CTkFrame(ventana, fg_color=("gray12"))
-        canvas_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        # refrescar label con valor actual del XML
+        self.ruta_label_var.set(sistema.obtenerRutaSistema() or "Ruta no configurada")
 
-        def render(df: pd.DataFrame, titulo: str, label_col: str):
-            for child in canvas_frame.winfo_children():
-                child.destroy()
-            
+        ruta_frame = ctk.CTkFrame(cuerpo, fg_color=("gray12"))
+        ruta_frame.pack(fill="x", pady=(0, 18))
+        ctk.CTkLabel(ruta_frame, text="Ruta actual:", width=110).pack(side="left", padx=4)
+        ctk.CTkLabel(ruta_frame, textvariable=self.ruta_label_var,
+                     text_color="lightgreen", anchor="w").pack(side="left", padx=4)
 
-            canvas = FigureCanvasTkAgg(master=canvas_frame)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill="both", expand=True)
-
-        ctk.CTkButton(btns, text="Seleccionar ruta del sistema para respaldos",
-                      command=self.seleccionRutaSistema, width=190).pack(side="left", padx=4, pady=6)
-        ctk.CTkButton(btns, text="Cerrar", width=120, command=ventana.destroy).pack(side="right", padx=6, pady=8)
+        botones = ctk.CTkFrame(cuerpo, fg_color=("gray12"))
+        botones.pack(fill="x")
+        ctk.CTkButton(botones, text="Seleccionar ruta del sistema para respaldos",
+                      command=self.seleccionRutaSistema, width=260).pack(side="left", padx=6, pady=6)
+        ctk.CTkButton(botones, text="Cerrar", width=120, command=ventana.destroy).pack(side="right", padx=6, pady=6)
 
     def seleccionRutaSistema(self):
-        root = ttk.tkinter.Tk()
-        root.withdraw()
-        ruta = filedialog.askdirectory(title="Seleccionar carpeta para archivos de respaldo del sistema")
+        ruta = filedialog.askdirectory(title="Seleccionar carpeta para archivos de respaldo del sistema", parent=self)
         if ruta:
-            sistema.ruta_sistema = ruta
+            sistema.establecerRutaSistema(ruta)
+            self.ruta_label_var.set(ruta)
             messagebox.showinfo("Ruta seleccionada", f"Ruta del sistema establecida en:\n{ruta}")
         else:
             messagebox.showwarning("Sin selección", "No se seleccionó ninguna carpeta. La ruta del sistema no se ha cambiado.")
