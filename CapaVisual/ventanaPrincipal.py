@@ -1,5 +1,5 @@
 import tkinter.ttk as ttk
-from tkinter import messagebox, simpledialog
+from tkinter import filedialog, messagebox, simpledialog
 import customtkinter as ctk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
@@ -404,9 +404,19 @@ class VentanaPrincipal(ctk.CTk):
             canvas.draw()
             canvas.get_tk_widget().pack(fill="both", expand=True)
 
-        ctk.CTkButton(btns, text="Configuración de sistema",
-                      command=self.configuracionSistema, width=190).pack(side="left", padx=4, pady=6)
+        ctk.CTkButton(btns, text="Seleccionar ruta del sistema para respaldos",
+                      command=self.seleccionRutaSistema, width=190).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(btns, text="Cerrar", width=120, command=ventana.destroy).pack(side="right", padx=6, pady=8)
 
+    def seleccionRutaSistema(self):
+        root = ttk.tkinter.Tk()
+        root.withdraw()
+        ruta = filedialog.askdirectory(title="Seleccionar carpeta para archivos de respaldo del sistema")
+        if ruta:
+            sistema.ruta_sistema = ruta
+            messagebox.showinfo("Ruta seleccionada", f"Ruta del sistema establecida en:\n{ruta}")
+        else:
+            messagebox.showwarning("Sin selección", "No se seleccionó ninguna carpeta. La ruta del sistema no se ha cambiado.")
+        
 if __name__ == "__main__":
     VentanaPrincipal().mainloop()
