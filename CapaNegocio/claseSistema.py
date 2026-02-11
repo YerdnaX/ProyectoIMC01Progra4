@@ -28,24 +28,20 @@ def obtenerRutaSistema():
     return claseXML.cargarRutaSistema()
 
 
-def _persona_a_dict(p: clasePersona):
+def personaToDict(persona: clasePersona):
     return {
-        "id": p.id,
-        "nombre": p.nombre,
-        "edad": p.edad,
-        "genero": p.genero,
-        "peso": p.peso,
-        "estatura": p.estatura,
-        "imc": p.imcCalculado,
-        "estado": p.estado,
+        "id": persona.id,
+        "nombre": persona.nombre,
+        "edad": persona.edad,
+        "genero": persona.genero,
+        "peso": persona.peso,
+        "estatura": persona.estatura,
+        "imc": persona.imcCalculado,
+        "estado": persona.estado,
     }
 
 
 def guardarInformacionArchivos():
-    """
-    Guarda la información en memoria a JSON y XML en la ruta configurada.
-    Devuelve las rutas de los archivos creados.
-    """
     ruta = obtenerRutaSistema()
     if not ruta:
         raise ValueError("No hay ruta del sistema configurada. Configure una carpeta antes de guardar.")

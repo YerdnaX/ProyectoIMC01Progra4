@@ -50,7 +50,7 @@ class VentanaPrincipal(ctk.CTk):
         ctk.CTkButton(barra, text="Cargar desde respaldo",
                       command=self.cargarRespaldo, width=190, **estilo_btn).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(barra, text="Salir",
-                      command=self.SalirTOTAL, width=90, **estilo_btn).pack(side="right", padx=6, pady=6)
+                      command=self.destroy, width=90, **estilo_btn).pack(side="right", padx=6, pady=6)
         
 ##Se contruyen los labels y los textbox
     def construirFormulario(self):
@@ -377,6 +377,7 @@ class VentanaPrincipal(ctk.CTk):
     # Acciones de menuu
     def configuracionSistema(self):
         self.abrirConfiguracionSistema()
+        
     def guardarArchivos(self):
         try:
             archivo_json, archivo_xml = sistema.guardarInformacionArchivos()
