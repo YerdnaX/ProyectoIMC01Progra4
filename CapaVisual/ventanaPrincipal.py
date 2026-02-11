@@ -28,7 +28,7 @@ class VentanaPrincipal(ctk.CTk):
         self.construirFormulario()
         self.construirTabla()
         self.bind("<Escape>", self._on_escape)
-        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.protocol("WM_DELETE_WINDOW", self.SalirTOTAL)
         self.refrescarTabla()
         
     def construirMenu(self):
@@ -43,13 +43,13 @@ class VentanaPrincipal(ctk.CTk):
         }
 
         ctk.CTkButton(barra, text="Configuración de sistema",
-                      command=self.configuracion_sistema, width=190, **estilo_btn).pack(side="left", padx=4, pady=6)
+                      command=self.configuracionSistema, width=190, **estilo_btn).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(barra, text="Guardar información en archivos",
-                      command=self.guardar_archivos, width=210, **estilo_btn).pack(side="left", padx=4, pady=6)
+                      command=self.guardarArchivos, width=210, **estilo_btn).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(barra, text="Cargar desde respaldo",
-                      command=self.cargar_respaldo, width=190, **estilo_btn).pack(side="left", padx=4, pady=6)
+                      command=self.cargarRespaldo, width=190, **estilo_btn).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(barra, text="Salir",
-                      command=self._on_close, width=90, **estilo_btn).pack(side="right", padx=6, pady=6)
+                      command=self.SalirTOTAL, width=90, **estilo_btn).pack(side="right", padx=6, pady=6)
         
 ##Se contruyen los labels y los textbox
     def construirFormulario(self):
@@ -289,7 +289,7 @@ class VentanaPrincipal(ctk.CTk):
         self.msg_var.set("")
         self.limpiarFormulario()
 
-    def _on_close(self):
+    def SalirTOTAL(self):
         self._closing = True
         if self._after_id:
             try:
@@ -368,16 +368,45 @@ class VentanaPrincipal(ctk.CTk):
     def limpiarSeleccion(self):
         self._restoring_selection = False
 
-    # Acciones de menú
-    def configuracion_sistema(self):
-        messagebox.showinfo("Configuración de sistema", "Configura aquí los parámetros del sistema (pendiente de implementación).")
-
-    def guardar_archivos(self):
+    # Acciones de menuu
+    def configuracionSistema(self):
+        self.abrirConfiguracionSistema()
+    def guardarArchivos(self):
         messagebox.showinfo("Guardar información", "Guardar información en archivos (pendiente de implementación).")
 
-    def cargar_respaldo(self):
+    def cargarRespaldo(self):
         messagebox.showinfo("Cargar desde respaldo", "Cargar datos desde un respaldo (pendiente de implementación).")
 
+
+    def abrirConfiguracionSistema(self):
+        ventana = ctk.CTkToplevel(self)
+        ventana.title("Configuracion del sistema")
+        ventana.geometry("400x320")
+        ventana.resizable(True, False)
+        # traer al frente al abrir
+        ventana.lift()
+        ventana.focus_force()
+        ventana.attributes("-topmost", True)
+        ventana.after(200, lambda: ventana.attributes("-topmost", False))
+
+        btns = ctk.CTkFrame(ventana, fg_color=("gray12"))
+        btns.pack(fill="x", padx=10, pady=10)
+
+        canvas_frame = ctk.CTkFrame(ventana, fg_color=("gray12"))
+        canvas_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        def render(df: pd.DataFrame, titulo: str, label_col: str):
+            for child in canvas_frame.winfo_children():
+                child.destroy()
+            
+
+            canvas = FigureCanvasTkAgg(master=canvas_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill="both", expand=True)
+
+        ctk.CTkButton(btns, text="Configuración de sistema",
+                      command=self.configuracionSistema, width=190).pack(side="left", padx=4, pady=6)
+        ctk.CTkButton(btns, text="Cerrar", width=120, command=ventana.destroy).pack(side="right", padx=6, pady=8)
 
 if __name__ == "__main__":
     VentanaPrincipal().mainloop()
