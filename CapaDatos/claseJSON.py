@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 
 
-def guardarListaPersonas(lista_personas, ruta_destino: str):
-    destino = Path(ruta_destino)
+def guardarListaPersonas(listaPersonas, rutaDestino: str):
+    destino = Path(rutaDestino)
     destino.mkdir(parents=True, exist_ok=True)
     archivo = destino / "respaldoPrincipalSistema.json"
 
@@ -18,7 +18,7 @@ def guardarListaPersonas(lista_personas, ruta_destino: str):
             "imc": persona.imcCalculado,
             "estado": persona.estado,
         }
-        for persona in lista_personas
+        for persona in listaPersonas
     ]
 
     with open(archivo, "w", encoding="utf-8") as f:
