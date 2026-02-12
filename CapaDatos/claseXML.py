@@ -26,10 +26,13 @@ def cargarRutaSistema():
 
 
 def guardarListaPersonas(lista_personas, ruta_destino: str):
-
+    """
+    Guarda la lista de personas en un archivo XML en la ruta indicada.
+    Archivo: respaldo_personas.xml
+    """
     destino = Path(ruta_destino)
     destino.mkdir(parents=True, exist_ok=True)
-    archivo = destino / "respaldoSecundarioSistema.xml"
+    archivo = destino / "respaldo_personas.xml"
 
     root = ET.Element("personas")
     for persona in lista_personas:
@@ -45,5 +48,30 @@ def guardarListaPersonas(lista_personas, ruta_destino: str):
 
     tree = ET.ElementTree(root)
     tree.write(archivo, encoding="utf-8", xml_declaration=True)
-
     return str(archivo)
+
+
+def cargarListaPersonas(ruta_origen: str):
+    """
+    Lee respaldo_personas.xml en la ruta indicada y devuelve lista de diccionarios.
+    """
+    archivo = Path(ruta_origen) / "respaldo_personas.xml"
+    if not archivo.exists():
+        return None
+    tree = ET.parse(archivo)
+    root = tree.getroot()
+    personas = []
+    for nodo in root.findall("persona"):
+        personas.append(
+            {
+                "id": nodo.findtext("id"),
+                "nombre": nodo.findtext("nombre"),
+                "edad": nodo.findtext("edad"),
+                "genero": nodo.findtext("genero"),
+                "peso": nodo.findtext("peso"),
+                "estatura": nodo.findtext("estatura"),
+                "imc": nodo.findtext("imc"),
+                "estado": nodo.findtext("estado"),
+            }
+        )
+    return personas

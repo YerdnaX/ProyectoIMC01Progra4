@@ -4,6 +4,37 @@ from CapaDatos import claseXML, claseJSON
 listaPersonas = []
 # Ruta donde se guardan respaldos/archivos del sistema
 rutaSistema = claseXML.cargarRutaSistema()
+def _cargar_inicial_desde_json():
+    if not rutaSistema:
+        return
+    datos = claseJSON.cargarListaPersonas(rutaSistema)
+    if not datos:
+        return
+    personas = []
+    for d in datos:
+        try:
+            edad = int(d.get("edad") or 0)
+            peso = float(d.get("peso") or 0)
+            estatura = float(d.get("estatura") or 1)
+            imc = float(d.get("imc") or calcularIMC(peso, estatura))
+            persona = clasePersona(
+                d.get("id"),
+                d.get("nombre"),
+                edad,
+                d.get("genero"),
+                peso,
+                estatura,
+                imc,
+                d.get("estado"),
+            )
+            personas.append(persona)
+        except Exception:
+            continue
+    if personas:
+        global listaPersonas
+        listaPersonas = personas
+
+_cargar_inicial_desde_json()
 
 
 ##Agrega Persona a la lista, ya la info viene validada :D
@@ -48,6 +79,47 @@ def guardarInformacionArchivos():
     archivo_json = claseJSON.guardarListaPersonas(listaPersonas, ruta)
     archivo_xml = claseXML.guardarListaPersonas(listaPersonas, ruta)
     return archivo_json, archivo_xml
+
+
+def cargarDesdeRespaldo():
+    """
+    Carga la información desde respaldo_personas.xml en la ruta configurada
+    y reemplaza la lista en memoria.
+    """
+    ruta = obtenerRutaSistema()
+    if not ruta:
+        raise ValueError("No hay ruta del sistema configurada. Configure una carpeta antes de cargar.")
+    datos = claseXML.cargarListaPersonas(ruta)
+    if not datos:
+        raise FileNotFoundError("No se encontró respaldo_personas.xml en la ruta configurada.")
+
+    personas = []
+    for d in datos:
+        try:
+            edad = int(d.get("edad") or 0)
+            peso = float(d.get("peso") or 0)
+            estatura = float(d.get("estatura") or 1)
+            imc = float(d.get("imc") or calcularIMC(peso, estatura))
+            persona = clasePersona(
+                d.get("id"),
+                d.get("nombre"),
+                edad,
+                d.get("genero"),
+                peso,
+                estatura,
+                imc,
+                d.get("estado"),
+            )
+            personas.append(persona)
+        except Exception:
+            continue
+
+    if not personas:
+        raise ValueError("El respaldo está vacío o contiene datos inválidos.")
+
+    global listaPersonas
+    listaPersonas = personas
+    return len(personas)
     
 ##Retorna el IMC de una persona
 def calcularIMC(peso, estatura) -> float:

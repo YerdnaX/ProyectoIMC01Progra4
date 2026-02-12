@@ -25,3 +25,20 @@ def guardarListaPersonas(listaPersonas, rutaDestino: str):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
     return str(archivo)
+
+
+def cargarListaPersonas(rutaOrigen: str):
+    """
+    Lee respaldoPrincipalSistema.json en la ruta indicada y devuelve lista de diccionarios.
+    """
+    archivo = Path(rutaOrigen) / "respaldoPrincipalSistema.json"
+    if not archivo.exists():
+        return None
+    with open(archivo, "r", encoding="utf-8") as f:
+        try:
+            data = json.load(f)
+        except Exception:
+            return None
+    if not isinstance(data, list):
+        return None
+    return data

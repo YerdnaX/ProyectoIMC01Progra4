@@ -390,7 +390,17 @@ class VentanaPrincipal(ctk.CTk):
             messagebox.showerror("Error al guardar", f"No se pudo guardar el respaldo.\nDetalle: {e}")
 
     def cargarRespaldo(self):
-        messagebox.showinfo("Cargar desde respaldo", "Cargar datos desde un respaldo (pendiente de implementación).")
+        try:
+            cantidad = sistema.cargarDesdeRespaldo()
+            self.msg_var.set(f"Respaldo cargado ({cantidad} registros).")
+            self.refrescarTabla()
+            messagebox.showinfo("Respaldo cargado", f"Se cargaron {cantidad} registros desde el XML.")
+        except FileNotFoundError as e:
+            messagebox.showwarning("Respaldo no encontrado", str(e))
+        except ValueError as e:
+            messagebox.showwarning("Ruta o datos inválidos", str(e))
+        except Exception as e:
+            messagebox.showerror("Error al cargar", f"No se pudo cargar el respaldo.\nDetalle: {e}")
 
 
     def abrirConfiguracionSistema(self):

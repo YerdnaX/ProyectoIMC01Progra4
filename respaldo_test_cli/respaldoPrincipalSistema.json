@@ -1,0 +1,22 @@
+[
+  {
+    "id": "1",
+    "nombre": "Ana",
+    "edad": 30,
+    "genero": "femenino",
+    "peso": 60,
+    "estatura": 1.65,
+    "imc": 22,
+    "estado": "Peso normal"
+  },
+  {
+    "id": "2",
+    "nombre": "Luis",
+    "edad": 25,
+    "genero": "masculino",
+    "peso": 80,
+    "estatura": 1.8,
+    "imc": 24.7,
+    "estado": "Peso normal"
+  }
+]
