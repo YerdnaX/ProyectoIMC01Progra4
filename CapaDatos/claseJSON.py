@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-
+## Guarda lista personas en un JSON, retorna la ruta del archivo generado
 def guardarListaPersonas(listaPersonas, rutaDestino: str):
     destino = Path(rutaDestino)
     destino.mkdir(parents=True, exist_ok=True)
@@ -26,11 +26,8 @@ def guardarListaPersonas(listaPersonas, rutaDestino: str):
 
     return str(archivo)
 
-
+## Carga la lsita de personas
 def cargarListaPersonas(rutaOrigen: str):
-    """
-    Lee respaldoPrincipalSistema.json en la ruta indicada y devuelve lista de diccionarios.
-    """
     archivo = Path(rutaOrigen) / "respaldoPrincipalSistema.json"
     if not archivo.exists():
         return None

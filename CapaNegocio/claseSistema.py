@@ -4,28 +4,28 @@ from CapaDatos import claseXML, claseJSON
 listaPersonas = []
 # Ruta donde se guardan respaldos/archivos del sistema
 rutaSistema = claseXML.cargarRutaSistema()
-def _cargar_inicial_desde_json():
+def cargaAlAbrirDesdeJSON():
     if not rutaSistema:
         return
     datos = claseJSON.cargarListaPersonas(rutaSistema)
     if not datos:
         return
     personas = []
-    for d in datos:
+    for dato in datos:
         try:
-            edad = int(d.get("edad") or 0)
-            peso = float(d.get("peso") or 0)
-            estatura = float(d.get("estatura") or 1)
-            imc = float(d.get("imc") or calcularIMC(peso, estatura))
+            edad = int(dato.get("edad") or 0)
+            peso = float(dato.get("peso") or 0)
+            estatura = float(dato.get("estatura") or 1)
+            imc = float(dato.get("imc") or calcularIMC(peso, estatura))
             persona = clasePersona(
-                d.get("id"),
-                d.get("nombre"),
+                dato.get("id"),
+                dato.get("nombre"),
                 edad,
-                d.get("genero"),
+                dato.get("genero"),
                 peso,
                 estatura,
                 imc,
-                d.get("estado"),
+                dato.get("estado"),
             )
             personas.append(persona)
         except Exception:
@@ -34,7 +34,7 @@ def _cargar_inicial_desde_json():
         global listaPersonas
         listaPersonas = personas
 
-_cargar_inicial_desde_json()
+cargaAlAbrirDesdeJSON()
 
 
 ##Agrega Persona a la lista, ya la info viene validada :D
@@ -49,16 +49,18 @@ def eliminarPersona(id):
     global listaPersonas
     listaPersonas = [p for p in listaPersonas if p.id != id]
 
+##Funcion q se llama desde para guardar ruta sistema, usa variable global para tenerla siempre en memoria :D
 def establecerRutaSistema(ruta: str):
     global rutaSistema
     claseXML.guardarRutaSistema(ruta)
     rutaSistema = ruta
     return ruta
 
+##Retorna la ruta seleccionada del sistema, si no retorna none
 def obtenerRutaSistema():
     return claseXML.cargarRutaSistema()
 
-
+##De objeto persona a diccionario
 def personaToDict(persona: clasePersona):
     return {
         "id": persona.id,
@@ -71,7 +73,7 @@ def personaToDict(persona: clasePersona):
         "estado": persona.estado,
     }
 
-
+## Funcion para guardar JSON-XML
 def guardarInformacionArchivos():
     ruta = obtenerRutaSistema()
     if not ruta:
@@ -80,12 +82,8 @@ def guardarInformacionArchivos():
     archivo_xml = claseXML.guardarListaPersonas(listaPersonas, ruta)
     return archivo_json, archivo_xml
 
-
+##Carfa desde respaldo XML, retorna el error o la cantidad de objetos cargados a memorai
 def cargarDesdeRespaldo():
-    """
-    Carga la información desde respaldo_personas.xml en la ruta configurada
-    y reemplaza la lista en memoria.
-    """
     ruta = obtenerRutaSistema()
     if not ruta:
         raise ValueError("No hay ruta del sistema configurada. Configure una carpeta antes de cargar.")
@@ -94,21 +92,21 @@ def cargarDesdeRespaldo():
         raise FileNotFoundError("No se encontró respaldo_personas.xml en la ruta configurada.")
 
     personas = []
-    for d in datos:
+    for dato in datos:
         try:
-            edad = int(d.get("edad") or 0)
-            peso = float(d.get("peso") or 0)
-            estatura = float(d.get("estatura") or 1)
-            imc = float(d.get("imc") or calcularIMC(peso, estatura))
+            edad = int(dato.get("edad") or 0)
+            peso = float(dato.get("peso") or 0)
+            estatura = float(dato.get("estatura") or 1)
+            imc = float(dato.get("imc") or calcularIMC(peso, estatura))
             persona = clasePersona(
-                d.get("id"),
-                d.get("nombre"),
+                dato.get("id"),
+                dato.get("nombre"),
                 edad,
-                d.get("genero"),
+                dato.get("genero"),
                 peso,
                 estatura,
                 imc,
-                d.get("estado"),
+                dato.get("estado"),
             )
             personas.append(persona)
         except Exception:

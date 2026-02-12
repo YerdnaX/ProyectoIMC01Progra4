@@ -240,7 +240,7 @@ class VentanaPrincipal(ctk.CTk):
         if not self._closing and self.winfo_exists():
             self._after_id = self.after(1500, self.refrescarTabla)
 
-
+    ##Limpia campos del formulario de la ventana principal
     def limpiarFormulario(self):
         self.id_var.set("")
         self.nombre_var.set("")
@@ -251,6 +251,7 @@ class VentanaPrincipal(ctk.CTk):
         self.tabla.selection_remove(self.tabla.selection())
         self.id_entry.configure(state="normal")
 
+    ##Borra a partir de seleccion en tabla
     def borrar(self):
         seleccionado = self.tabla.selection()
         if not seleccionado:
@@ -265,6 +266,7 @@ class VentanaPrincipal(ctk.CTk):
         self.msg_var.set("Registro eliminado.")
         self.limpiarFormulario()
 
+    ##Funcion al seleccionar registro
     def _on_select(self, _event):
         if self._restoring_selection:
             return
@@ -284,12 +286,13 @@ class VentanaPrincipal(ctk.CTk):
         # Bloquear ID en modo edición
         self.id_entry.configure(state="disabled")
 
+    ## Funcion para limpiar filtro al presionar escape
     def _on_escape(self, _event=None):
-        # limpiar filtro y formulario
         self.filtro_id = None
         self.msg_var.set("")
         self.limpiarFormulario()
 
+    ##Para Salir total, cancela refresco y callbacks para evitar errores al cerrar mientras esta esperando algo
     def SalirTOTAL(self):
         self._closing = True
         if self._after_id:
@@ -312,14 +315,16 @@ class VentanaPrincipal(ctk.CTk):
             except Exception:
                 pass
 
+    ##Filtra por seleccion de ID
     def filtrar(self):
-        id_buscar = simpledialog.askstring("Filtrar por ID", "Ingrese el ID a buscar:", parent=self)
-        if id_buscar is None or id_buscar.strip() == "":
+        idBuscar = simpledialog.askstring("Filtrar por ID", "Ingrese el ID a buscar:", parent=self)
+        if idBuscar is None or idBuscar.strip() == "":
             return
-        self.filtro_id = id_buscar.strip()
+        self.filtro_id = idBuscar.strip()
         self.msg_var.set(f"Filtro activo: ID {self.filtro_id}")
         self.refrescarTabla()
 
+    ##Contruccion de ventana reportes
     def abrirReportes(self):
         ventana = ctk.CTkToplevel(self)
         ventana.title("Reportes")
@@ -377,7 +382,8 @@ class VentanaPrincipal(ctk.CTk):
     # Acciones de menuu
     def configuracionSistema(self):
         self.abrirConfiguracionSistema()
-        
+    
+    ##Funcion para guardar archivos JSON-XML, muestra mensaje con rutas o error
     def guardarArchivos(self):
         try:
             archivo_json, archivo_xml = sistema.guardarInformacionArchivos()
@@ -389,6 +395,7 @@ class VentanaPrincipal(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Error al guardar", f"No se pudo guardar el respaldo.\nDetalle: {e}")
 
+     ## Carga desde respaldo XML
     def cargarRespaldo(self):
         try:
             cantidad = sistema.cargarDesdeRespaldo()
@@ -402,7 +409,7 @@ class VentanaPrincipal(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Error al cargar", f"No se pudo cargar el respaldo.\nDetalle: {e}")
 
-
+    ##Contuctor de ventana de cong sistema
     def abrirConfiguracionSistema(self):
         ventana = ctk.CTkToplevel(self)
         ventana.title("Configuración del sistema")
@@ -430,7 +437,8 @@ class VentanaPrincipal(ctk.CTk):
         ctk.CTkButton(botones, text="Seleccionar ruta del sistema para respaldos",
                       command=self.seleccionRutaSistema, width=260).pack(side="left", padx=6, pady=6)
         ctk.CTkButton(botones, text="Cerrar", width=120, command=ventana.destroy).pack(side="right", padx=6, pady=6)
-
+    
+    ##Funcon para seleccion ruta, guarda en XML
     def seleccionRutaSistema(self):
         ruta = filedialog.askdirectory(title="Seleccionar carpeta para archivos de respaldo del sistema", parent=self)
         if ruta:
