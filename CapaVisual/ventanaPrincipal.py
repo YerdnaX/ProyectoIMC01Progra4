@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from CapaNegocio import claseSistema as sistema
 from CapaNegocio import claseValidaciones as val
 from Entidades.clasePersona import clasePersona
+from Entidades.claseHiloIMC import HiloIMC
 import pandas as pd
 
 
@@ -575,7 +576,15 @@ class VentanaCalculoIMC(ctk.CTkToplevel):
         self._log("Creando hilos...")
         self.threads = []
         for idx, seg in enumerate(segmentos, start=1):
-            hilo = sistema.IMCWorkerThread(seg, self.log_queue, lock=sistema.imc_lock, nombre=f"Hilo {idx}")
+            hilo = HiloIMC(
+                seg,
+                self.log_queue,
+                sistema.listaPersonas,
+                sistema.calcularIMC,
+                sistema.estadoIMC,
+                lock=sistema.imc_lock,
+                nombre=f"Hilo {idx}",
+            )
             self.threads.append(hilo)
         for hilo in self.threads:
             hilo.start()
@@ -586,6 +595,9 @@ class VentanaCalculoIMC(ctk.CTkToplevel):
         self._monitor_threads()
 
     def _poll_queue(self):
+        # Mostrar mensajes en lotes pequeños para que se perciba el avance intercalado
+        # Consumir y volcar todos los mensajes disponibles ahora mismo.
+        # Esto muestra la intercalación real según el scheduler del SO.
         try:
             while True:
                 msg = self.log_queue.get_nowait()
@@ -595,8 +607,8 @@ class VentanaCalculoIMC(ctk.CTkToplevel):
                 self.log_text.configure(state="disabled")
         except Empty:
             pass
-        if self.en_progreso and self.winfo_exists():
-            self._poll_after_id = self.after(50, self._poll_queue)
+        if (self.en_progreso or not self.log_queue.empty()) and self.winfo_exists():
+            self._poll_after_id = self.after(30, self._poll_queue)
 
     def _monitor_threads(self):
         vivos = any(t.is_alive() for t in self.threads)

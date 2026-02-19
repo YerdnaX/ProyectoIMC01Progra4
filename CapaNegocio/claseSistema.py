@@ -1,9 +1,9 @@
 from datetime import date, datetime
 import threading
-from queue import Queue
 from typing import Optional
 import pandas as pandas
 from Entidades.clasePersona import clasePersona
+from Entidades.claseHiloIMC import HiloIMC
 from CapaDatos import claseXML, claseJSON
 
 listaPersonas = []
@@ -247,35 +247,6 @@ def estadoIMCadulto(imc, genero) -> str:
             return "Sobrepeso"
         else:
             return "Obesidad"
-
-
-class IMCWorkerThread(threading.Thread):
-    """Hilo que calcula IMC para un segmento de registros y envía logs a la cola."""
-
-    def __init__(self, indices_segmento, log_queue: Queue, lock: Optional[threading.Lock] = None, nombre: str = ""):
-        super().__init__(name=nombre or None, daemon=True)
-        self.indices_segmento = list(indices_segmento)
-        self.log_queue = log_queue
-        self.lock = lock
-
-    def run(self):
-        self.log_queue.put(f"{self.name} inicia (registros {len(self.indices_segmento)}).")
-        for idx in self.indices_segmento:
-            try:
-                persona = listaPersonas[idx]
-            except Exception:
-                continue
-            imc = calcularIMC(persona.peso, persona.estatura)
-            estado = estadoIMC(persona.genero, persona.edad, persona.estatura, persona.peso, persona.genero, imc)
-            if self.lock:
-                with self.lock:
-                    persona.imcCalculado = imc
-                    persona.estado = estado
-            else:
-                persona.imcCalculado = imc
-                persona.estado = estado
-            self.log_queue.put(f"{self.name} procesó ID {persona.id} -> IMC {imc:.2f}, {estado}")
-        self.log_queue.put(f"{self.name} termina.")
 
 
 #  Reportes
