@@ -35,6 +35,7 @@ def guardarListaPersonas(lista_personas, ruta_destino: str):
         nodo = ET.SubElement(root, "persona")
         ET.SubElement(nodo, "id").text = str(persona.id)
         ET.SubElement(nodo, "nombre").text = str(persona.nombre)
+        ET.SubElement(nodo, "fecha_nacimiento").text = str(persona.fecha_nacimiento or "")
         ET.SubElement(nodo, "edad").text = str(persona.edad)
         ET.SubElement(nodo, "genero").text = str(persona.genero)
         ET.SubElement(nodo, "peso").text = str(persona.peso)
@@ -59,6 +60,7 @@ def cargarListaPersonas(ruta_origen: str):
             {
                 "id": nodo.findtext("id"),
                 "nombre": nodo.findtext("nombre"),
+                "fecha_nacimiento": nodo.findtext("fecha_nacimiento"),
                 "edad": nodo.findtext("edad"),
                 "genero": nodo.findtext("genero"),
                 "peso": nodo.findtext("peso"),
@@ -67,4 +69,4 @@ def cargarListaPersonas(ruta_origen: str):
                 "estado": nodo.findtext("estado"),
             }
         )
-    return personas
+    return personas  # Puede retornar listas vacias si no hay nodos persona

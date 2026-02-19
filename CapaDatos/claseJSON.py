@@ -13,6 +13,7 @@ def guardarListaPersonas(listaPersonas, rutaDestino: str):
             "nombre": persona.nombre,
             "edad": persona.edad,
             "genero": persona.genero,
+            "fecha_nacimiento": persona.fecha_nacimiento,
             "peso": persona.peso,
             "estatura": persona.estatura,
             "imc": persona.imcCalculado,

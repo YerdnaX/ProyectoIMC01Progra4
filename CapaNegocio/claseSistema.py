@@ -1,9 +1,75 @@
-from Entidades.clasePersona import clasePersona
+from datetime import date, datetime
 import pandas as pandas
+from Entidades.clasePersona import clasePersona
 from CapaDatos import claseXML, claseJSON
+
 listaPersonas = []
 # Ruta donde se guardan respaldos/archivos del sistema
 rutaSistema = claseXML.cargarRutaSistema()
+
+
+def _parse_fecha(fecha_nac):
+    """Convierte fecha en str o date a date, aceptando varios formatos habituales."""
+    if isinstance(fecha_nac, date):
+        return fecha_nac
+    if not fecha_nac:
+        return None
+    candidatos = ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%m-%d-%Y"]
+    for fmt in candidatos:
+        try:
+            return datetime.strptime(str(fecha_nac), fmt).date()
+        except Exception:
+            continue
+    try:
+        # fallback a fromisoformat por si viene con tiempo
+        return datetime.fromisoformat(str(fecha_nac)).date()
+    except Exception:
+        return None
+
+
+def calcularEdadDesdeFecha(fecha_nac):
+    """Calcula la edad desde string o date; retorna None si no se pudo calcular."""
+    fecha = _parse_fecha(fecha_nac)
+    if not fecha:
+        return None
+    hoy = date.today()
+    return hoy.year - fecha.year - ((hoy.month, hoy.day) < (fecha.month, fecha.day))
+
+
+def _persona_desde_dict(dato: dict):
+    fecha_nacimiento = dato.get("fecha_nacimiento")
+    edad = calcularEdadDesdeFecha(fecha_nacimiento)
+    if edad is None:
+        try:
+            edad = int(dato.get("edad") or 0)
+        except Exception:
+            edad = 0
+    try:
+        peso = float(dato.get("peso") or 0)
+        estatura = float(dato.get("estatura") or 1)
+    except Exception:
+        return None
+    try:
+        imc = float(dato.get("imc") or calcularIMC(peso, estatura))
+    except Exception:
+        imc = calcularIMC(peso, estatura)
+
+    try:
+        return clasePersona(
+            dato.get("id"),
+            dato.get("nombre"),
+            edad,
+            dato.get("genero"),
+            peso,
+            estatura,
+            imc,
+            dato.get("estado"),
+            fecha_nacimiento=fecha_nacimiento,
+        )
+    except Exception:
+        return None
+
+
 def cargaAlAbrirDesdeJSON():
     if not rutaSistema:
         return
@@ -12,36 +78,25 @@ def cargaAlAbrirDesdeJSON():
         return
     personas = []
     for dato in datos:
-        try:
-            edad = int(dato.get("edad") or 0)
-            peso = float(dato.get("peso") or 0)
-            estatura = float(dato.get("estatura") or 1)
-            imc = float(dato.get("imc") or calcularIMC(peso, estatura))
-            persona = clasePersona(
-                dato.get("id"),
-                dato.get("nombre"),
-                edad,
-                dato.get("genero"),
-                peso,
-                estatura,
-                imc,
-                dato.get("estado"),
-            )
+        persona = _persona_desde_dict(dato)
+        if persona:
             personas.append(persona)
-        except Exception:
-            continue
     if personas:
         global listaPersonas
         listaPersonas = personas
+
 
 cargaAlAbrirDesdeJSON()
 
 
 ##Agrega Persona a la lista, ya la info viene validada :D
-def agregarPersona(id, nombre, edad, genero, peso, estatura):
-    
-    estadoAsignado = estadoIMC(genero, edad, estatura, peso, genero, calcularIMC(peso, estatura))
-    personaNueva = clasePersona(id, nombre, edad, genero, peso, estatura, calcularIMC(peso, estatura), estadoAsignado)
+def agregarPersona(id, nombre, genero, peso, estatura, fecha_nacimiento):
+    edad = calcularEdadDesdeFecha(fecha_nacimiento) or 0
+    imc = calcularIMC(peso, estatura)
+    estadoAsignado = estadoIMC(genero, edad, estatura, peso, genero, imc)
+    personaNueva = clasePersona(
+        id, nombre, edad, genero, peso, estatura, imc, estadoAsignado, fecha_nacimiento=fecha_nacimiento
+    )
     listaPersonas.append(personaNueva)
     
 ##Elimina persona de la lista
@@ -66,6 +121,7 @@ def personaToDict(persona: clasePersona):
         "id": persona.id,
         "nombre": persona.nombre,
         "edad": persona.edad,
+        "fecha_nacimiento": persona.fecha_nacimiento,
         "genero": persona.genero,
         "peso": persona.peso,
         "estatura": persona.estatura,
@@ -82,38 +138,20 @@ def guardarInformacionArchivos():
     archivo_xml = claseXML.guardarListaPersonas(listaPersonas, ruta)
     return archivo_json, archivo_xml
 
-##Carfa desde respaldo XML, retorna el error o la cantidad de objetos cargados a memorai
+##Carga desde respaldo XML, retorna la cantidad de objetos cargados a memoria
 def cargarDesdeRespaldo():
     ruta = obtenerRutaSistema()
     if not ruta:
         raise ValueError("No hay ruta del sistema configurada. Configure una carpeta antes de cargar.")
     datos = claseXML.cargarListaPersonas(ruta)
-    if not datos:
+    if datos is None:
         raise FileNotFoundError("No se encontró respaldo_personas.xml en la ruta configurada.")
 
     personas = []
     for dato in datos:
-        try:
-            edad = int(dato.get("edad") or 0)
-            peso = float(dato.get("peso") or 0)
-            estatura = float(dato.get("estatura") or 1)
-            imc = float(dato.get("imc") or calcularIMC(peso, estatura))
-            persona = clasePersona(
-                dato.get("id"),
-                dato.get("nombre"),
-                edad,
-                dato.get("genero"),
-                peso,
-                estatura,
-                imc,
-                dato.get("estado"),
-            )
+        persona = _persona_desde_dict(dato)
+        if persona:
             personas.append(persona)
-        except Exception:
-            continue
-
-    if not personas:
-        raise ValueError("El respaldo está vacío o contiene datos inválidos.")
 
     global listaPersonas
     listaPersonas = personas
@@ -243,7 +281,7 @@ def reporteGrupoEdad():
 
     def bucket(edad):
         if edad < 12:
-            return "Niñez (<12)"
+            return "Ninez (<12)"
         elif edad < 18:
             return "Adolescencia (12-17)"
         elif edad < 60:

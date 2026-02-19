@@ -1,6 +1,8 @@
 import tkinter.ttk as ttk
 from tkinter import filedialog, messagebox, simpledialog
+from datetime import date, datetime
 import customtkinter as ctk
+from tkcalendar import DateEntry
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 from CapaNegocio import claseSistema as sistema
@@ -75,9 +77,18 @@ class VentanaPrincipal(ctk.CTk):
         self.nombre_var = ctk.StringVar()
         ctk.CTkEntry(marco, textvariable=self.nombre_var, width=190).grid(row=0, column=5, padx=5, pady=8)
 
-        ctk.CTkLabel(marco, text="Edad").grid(row=1, column=0, padx=5, pady=8, sticky="e")
-        self.edad_var = ctk.StringVar()
-        ctk.CTkEntry(marco, textvariable=self.edad_var, width=90).grid(row=1, column=1, padx=5, pady=8)
+        ctk.CTkLabel(marco, text="Fecha nacimiento").grid(row=1, column=0, padx=5, pady=8, sticky="e")
+        self.fecha_nac_var = ctk.StringVar()
+        self.fecha_nac_entry = DateEntry(
+            marco,
+            textvariable=self.fecha_nac_var,
+            date_pattern="yyyy-mm-dd",
+            width=12,
+            background="#1f2633",
+            foreground="white",
+            borderwidth=1
+        )
+        self.fecha_nac_entry.grid(row=1, column=1, padx=5, pady=8)
 
         ctk.CTkLabel(marco, text="Género").grid(row=1, column=2, padx=5, pady=8, sticky="e")
         self.genero_var = ctk.StringVar(value="Masculino")
@@ -148,7 +159,7 @@ class VentanaPrincipal(ctk.CTk):
         tipo = self.tipo_var.get()
         id_valor = self.id_var.get().strip()
         nombre = self.nombre_var.get().strip()
-        edad_txt = self.edad_var.get().strip()
+        fecha_nac_txt = self.fecha_nac_var.get().strip()
         genero = self.genero_var.get().strip()
         peso_txt = self.peso_var.get().strip()
         estatura_txt = self.estatura_var.get().strip()
@@ -156,7 +167,7 @@ class VentanaPrincipal(ctk.CTk):
         validaciones = [
             val.validarID(id_valor, tipo),
             val.validarNombre(nombre),
-            val.validarEdad(edad_txt),
+            val.validarFechaNacimiento(fecha_nac_txt),
             val.validarGenero(genero),
             val.validarPeso(peso_txt),
             val.validarEstaturaMetros(estatura_txt),
@@ -167,13 +178,13 @@ class VentanaPrincipal(ctk.CTk):
             messagebox.showerror("Datos inválidos", "\n".join(errores))
             return
 
-        edad = int(edad_txt)
+        edad = sistema.calcularEdadDesdeFecha(fecha_nac_txt) or 0
         peso = float(peso_txt)
         estatura = float(estatura_txt)
         imc = round(sistema.calcularIMC(peso, estatura), 2)
         estado = sistema.estadoIMC(genero, edad, estatura, peso, genero, imc)
 
-        persona = clasePersona(id_valor, nombre, edad, genero, peso, estatura, imc, estado)
+        persona = clasePersona(id_valor, nombre, edad, genero, peso, estatura, imc, estado, fecha_nacimiento=fecha_nac_txt)
 
         ##Editar existentes porID
         if id_editar:
@@ -244,8 +255,12 @@ class VentanaPrincipal(ctk.CTk):
     def limpiarFormulario(self):
         self.id_var.set("")
         self.nombre_var.set("")
-        self.edad_var.set("")
-        self.genero_var.set("")
+        try:
+            self.fecha_nac_entry.set_date(date.today())
+            self.fecha_nac_var.set(self.fecha_nac_entry.get_date().strftime("%Y-%m-%d"))
+        except Exception:
+            self.fecha_nac_var.set("")
+        self.genero_var.set("Masculino")
         self.peso_var.set("")
         self.estatura_var.set("")
         self.tabla.selection_remove(self.tabla.selection())
@@ -279,10 +294,16 @@ class VentanaPrincipal(ctk.CTk):
             return
         self.id_var.set(valores[0])
         self.nombre_var.set(valores[1])
-        self.edad_var.set(valores[2])
         self.genero_var.set(valores[3] if valores[3] else "Masculino")
         self.peso_var.set(valores[4])
         self.estatura_var.set(valores[5])
+        persona_obj = next((p for p in sistema.listaPersonas if str(p.id) == str(item_id)), None)
+        if persona_obj and persona_obj.fecha_nacimiento:
+            try:
+                self.fecha_nac_entry.set_date(datetime.fromisoformat(persona_obj.fecha_nacimiento))
+                self.fecha_nac_var.set(persona_obj.fecha_nacimiento)
+            except Exception:
+                pass
         # Bloquear ID en modo edición
         self.id_entry.configure(state="disabled")
 
