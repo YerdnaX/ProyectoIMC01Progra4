@@ -52,7 +52,7 @@ class VentanaPrincipal(ctk.CTk):
         ctk.CTkButton(barra, text="Cargar desde respaldo",
                       command=self.cargarRespaldo, width=190, **estilo_btn).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(barra, text="Salir",
-                      command=self.destroy, width=90, **estilo_btn).pack(side="right", padx=6, pady=6)
+                      command=self.SalirTOTAL, width=90, **estilo_btn).pack(side="right", padx=6, pady=6)
         
 ##Se contruyen los labels y los textbox
     def construirFormulario(self):
@@ -315,14 +315,26 @@ class VentanaPrincipal(ctk.CTk):
 
     ##Para Salir total, cancela refresco y callbacks para evitar errores al cerrar mientras esta esperando algo
     def SalirTOTAL(self):
+        if self._closing:
+            return
         self._closing = True
         if self._after_id:
             try:
                 self.after_cancel(self._after_id)
             except Exception:
                 pass
-        self.cancelarTodosCallbacks()
-        self.destroy()
+        try:
+            self.cancelarTodosCallbacks()
+        except Exception:
+            pass
+        # Intento de cierre seguro; ignoro errores de Tcl si ya se destruyeron comandos
+        try:
+            super().destroy()
+        except Exception:
+            try:
+                self.quit()
+            except Exception:
+                pass
 
 ##Cancela todos los callbacks asi logro evitar errores si se cierra y esta esperando
     def cancelarTodosCallbacks(self):
