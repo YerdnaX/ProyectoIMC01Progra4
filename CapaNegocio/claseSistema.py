@@ -1,4 +1,7 @@
 from datetime import date, datetime
+import threading
+from queue import Queue
+from typing import Optional
 import pandas as pandas
 from Entidades.clasePersona import clasePersona
 from CapaDatos import claseXML, claseJSON
@@ -6,6 +9,7 @@ from CapaDatos import claseXML, claseJSON
 listaPersonas = []
 # Ruta donde se guardan respaldos/archivos del sistema
 rutaSistema = claseXML.cargarRutaSistema()
+imc_lock = threading.Lock()
 
 
 def _parse_fecha(fecha_nac):
@@ -49,10 +53,16 @@ def _persona_desde_dict(dato: dict):
         estatura = float(dato.get("estatura") or 1)
     except Exception:
         return None
-    try:
-        imc = float(dato.get("imc") or calcularIMC(peso, estatura))
-    except Exception:
-        imc = calcularIMC(peso, estatura)
+    imc_raw = dato.get("imc")
+    imc = None
+    if imc_raw not in [None, "", "None", "null", "Null"]:
+        try:
+            imc = float(imc_raw)
+        except Exception:
+            imc = None
+
+    estado_raw = dato.get("estado")
+    estado = estado_raw if estado_raw not in [None, ""] else "Sin calcular"
 
     try:
         return clasePersona(
@@ -63,7 +73,7 @@ def _persona_desde_dict(dato: dict):
             peso,
             estatura,
             imc,
-            dato.get("estado"),
+            estado,
             fecha_nacimiento=fecha_nacimiento,
         )
     except Exception:
@@ -92,8 +102,9 @@ cargaAlAbrirDesdeJSON()
 ##Agrega Persona a la lista, ya la info viene validada :D
 def agregarPersona(id, nombre, genero, peso, estatura, fecha_nacimiento):
     edad = calcularEdadDesdeFecha(fecha_nacimiento) or 0
-    imc = calcularIMC(peso, estatura)
-    estadoAsignado = estadoIMC(genero, edad, estatura, peso, genero, imc)
+    # REQ1: Registrar sin calcular IMC
+    imc = None
+    estadoAsignado = "Sin calcular"
     personaNueva = clasePersona(
         id, nombre, edad, genero, peso, estatura, imc, estadoAsignado, fecha_nacimiento=fecha_nacimiento
     )
@@ -159,8 +170,9 @@ def cargarDesdeRespaldo():
     
 ##Retorna el IMC de una persona
 def calcularIMC(peso, estatura) -> float:
-    imc = peso / (estatura ** 2)
-    return imc
+    if estatura is None or estatura <= 0:
+        return 0
+    return peso / (estatura ** 2)
 
 ##Retorna el estado del IMC
 def estadoIMC(sexo, edad, estatura, peso, genero, imc) -> str:
@@ -237,13 +249,42 @@ def estadoIMCadulto(imc, genero) -> str:
             return "Obesidad"
 
 
+class IMCWorkerThread(threading.Thread):
+    """Hilo que calcula IMC para un segmento de registros y envía logs a la cola."""
+
+    def __init__(self, indices_segmento, log_queue: Queue, lock: Optional[threading.Lock] = None, nombre: str = ""):
+        super().__init__(name=nombre or None, daemon=True)
+        self.indices_segmento = list(indices_segmento)
+        self.log_queue = log_queue
+        self.lock = lock
+
+    def run(self):
+        self.log_queue.put(f"{self.name} inicia (registros {len(self.indices_segmento)}).")
+        for idx in self.indices_segmento:
+            try:
+                persona = listaPersonas[idx]
+            except Exception:
+                continue
+            imc = calcularIMC(persona.peso, persona.estatura)
+            estado = estadoIMC(persona.genero, persona.edad, persona.estatura, persona.peso, persona.genero, imc)
+            if self.lock:
+                with self.lock:
+                    persona.imcCalculado = imc
+                    persona.estado = estado
+            else:
+                persona.imcCalculado = imc
+                persona.estado = estado
+            self.log_queue.put(f"{self.name} procesó ID {persona.id} -> IMC {imc:.2f}, {estado}")
+        self.log_queue.put(f"{self.name} termina.")
+
+
 #  Reportes
 
 ##Genera el dataframe a partir de la lista de personas pa reportes 
 def dataframePersonas():
     if not listaPersonas:
         return pandas.DataFrame(columns=["id", "nombre", "edad", "genero", "peso", "estatura", "imc", "estado"])
-    return pandas.DataFrame(
+    df = pandas.DataFrame(
         [
             {
                 "id": p.id,
@@ -258,6 +299,11 @@ def dataframePersonas():
             for p in listaPersonas
         ]
     )
+    # Excluir IMC sin calcular para evitar NaN en reportes
+    df = df[df["imc"].notna()]
+    if df.empty:
+        return pandas.DataFrame(columns=["id", "nombre", "edad", "genero", "peso", "estatura", "imc", "estado"])
+    return df
 
 ##Genera el reporte de cantidad y promedio de IMC por estado
 def reporteCategoriaIMC():

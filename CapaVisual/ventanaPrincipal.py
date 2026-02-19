@@ -1,6 +1,9 @@
 import tkinter.ttk as ttk
 from tkinter import filedialog, messagebox, simpledialog
+from tkinter.scrolledtext import ScrolledText
 from datetime import date, datetime
+import threading
+from queue import Queue, Empty
 import customtkinter as ctk
 from tkcalendar import DateEntry
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -26,6 +29,7 @@ class VentanaPrincipal(ctk.CTk):
         self._closing = False
         self._after_id = None
         self.filtro_id = None
+        self._ventana_calc = None
         self.ruta_label_var = ctk.StringVar(value=sistema.obtenerRutaSistema() or "Ruta no configurada")
         self.construirMenu()
         self.construirFormulario()
@@ -51,6 +55,9 @@ class VentanaPrincipal(ctk.CTk):
                       command=self.guardarArchivos, width=210, **estilo_btn).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(barra, text="Cargar desde respaldo",
                       command=self.cargarRespaldo, width=190, **estilo_btn).pack(side="left", padx=4, pady=6)
+        # Botón nuevo REQ3: abre ventana de cálculo de IMC
+        ctk.CTkButton(barra, text="Calcular IMC",
+                      command=self.abrirCalculoIMC, width=140, **estilo_btn).pack(side="left", padx=4, pady=6)
         ctk.CTkButton(barra, text="Salir",
                       command=self.SalirTOTAL, width=90, **estilo_btn).pack(side="right", padx=6, pady=6)
         
@@ -181,8 +188,9 @@ class VentanaPrincipal(ctk.CTk):
         edad = sistema.calcularEdadDesdeFecha(fecha_nac_txt) or 0
         peso = float(peso_txt)
         estatura = float(estatura_txt)
-        imc = round(sistema.calcularIMC(peso, estatura), 2)
-        estado = sistema.estadoIMC(genero, edad, estatura, peso, genero, imc)
+        # REQ1: registrar sin calcular IMC
+        imc = None
+        estado = "Sin calcular"
 
         persona = clasePersona(id_valor, nombre, edad, genero, peso, estatura, imc, estado, fecha_nacimiento=fecha_nac_txt)
 
@@ -228,6 +236,8 @@ class VentanaPrincipal(ctk.CTk):
 
         for p in registros:
             iid = str(p.id)
+            imc_txt = f"{p.imcCalculado:.2f}" if p.imcCalculado is not None else "Sin calcular"
+            estado_txt = p.estado if p.estado not in [None, ""] else "Sin calcular"
             self.tabla.insert(
                 "",
                 "end",
@@ -239,8 +249,8 @@ class VentanaPrincipal(ctk.CTk):
                     p.genero,
                     f"{p.peso:.1f}",
                     f"{p.estatura:.2f}",
-                    f"{p.imcCalculado:.2f}",
-                    p.estado,
+                    imc_txt,
+                    estado_txt,
                 ),
             )
         if id_prev and id_prev in self.tabla.get_children():
@@ -409,6 +419,16 @@ class VentanaPrincipal(ctk.CTk):
         ctk.CTkButton(btns, text="Cerrar", width=120, command=ventana.destroy).pack(side="right", padx=6, pady=8)
 
 
+    def abrirCalculoIMC(self):
+        if self._ventana_calc and self._ventana_calc.winfo_exists():
+            self._ventana_calc.lift()
+            self._ventana_calc.focus_force()
+            return
+        if not sistema.listaPersonas:
+            messagebox.showinfo("Sin registros", "No hay personas para calcular IMC.")
+            return
+        self._ventana_calc = VentanaCalculoIMC(self)
+
     def limpiarSeleccion(self):
         self._restoring_selection = False
 
@@ -481,5 +501,134 @@ class VentanaPrincipal(ctk.CTk):
         else:
             messagebox.showwarning("Sin selección", "No se seleccionó ninguna carpeta. La ruta del sistema no se ha cambiado.")
         
+# Ventana auxiliar REQ3-REQ5: cálculo de IMC con hilos y consola de logs
+class VentanaCalculoIMC(ctk.CTkToplevel):
+    def __init__(self, master: VentanaPrincipal):
+        super().__init__(master)
+        self.master = master
+        self.title("Calcular IMC (multihilo)")
+        self.geometry("620x420")
+        self.resizable(False, False)
+        self.log_queue: Queue[str] = Queue()
+        self.threads: list[threading.Thread] = []
+        self._poll_after_id = None
+        self._monitor_after_id = None
+        self.en_progreso = False
+
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        self.construir_ui()
+
+    def construir_ui(self):
+        cont = ctk.CTkFrame(self, fg_color="gray12")
+        cont.pack(fill="both", expand=True, padx=10, pady=10)
+
+        fila = ctk.CTkFrame(cont, fg_color="gray12")
+        fila.pack(fill="x", pady=(0, 8))
+        ctk.CTkLabel(fila, text="Cantidad de hilos:").pack(side="left", padx=(0, 6))
+        self.hilos_var = ctk.StringVar(value=str(min(4, max(1, len(sistema.listaPersonas)))))
+        self.hilos_entry = ctk.CTkEntry(fila, textvariable=self.hilos_var, width=80)
+        self.hilos_entry.pack(side="left", padx=(0, 10))
+        self.btn_iniciar = ctk.CTkButton(fila, text="Iniciar cálculo", command=self.iniciar_calculo, width=140)
+        self.btn_iniciar.pack(side="left")
+
+        self.log_text = ScrolledText(cont, height=16, state="disabled", wrap="word", background="#1f2633", foreground="white")
+        self.log_text.pack(fill="both", expand=True)
+
+        self._log("Iniciando ventana de cálculo...")
+
+    def _log(self, msg: str):
+        self.log_queue.put(msg)
+        self._poll_queue()
+
+    def iniciar_calculo(self):
+        if self.en_progreso:
+            return
+        total = len(sistema.listaPersonas)
+        try:
+            n_hilos = int(self.hilos_var.get())
+        except Exception:
+            messagebox.showerror("Valor inválido", "Ingrese un número de hilos válido.")
+            return
+        if n_hilos <= 0:
+            messagebox.showerror("Valor inválido", "La cantidad de hilos debe ser mayor a 0.")
+            return
+        if total == 0:
+            messagebox.showinfo("Sin datos", "No hay registros para procesar.")
+            return
+        if n_hilos > total:
+            n_hilos = total
+            self.hilos_var.set(str(n_hilos))
+            messagebox.showinfo("Ajuste de hilos", f"Se ajustó la cantidad de hilos a {n_hilos} (cantidad de registros).")
+
+        base = total // n_hilos
+        residuo = total % n_hilos
+        segmentos = []
+        inicio = 0
+        for i in range(n_hilos):
+            fin = inicio + base
+            if i == n_hilos - 1:
+                fin += residuo
+            segmentos.append(range(inicio, fin))
+            inicio = fin
+
+        self._log(f"Iniciando cálculo... registros: {total}, hilos: {n_hilos}")
+        self._log("Creando hilos...")
+        self.threads = []
+        for idx, seg in enumerate(segmentos, start=1):
+            hilo = sistema.IMCWorkerThread(seg, self.log_queue, lock=sistema.imc_lock, nombre=f"Hilo {idx}")
+            self.threads.append(hilo)
+        for hilo in self.threads:
+            hilo.start()
+
+        self.en_progreso = True
+        self.btn_iniciar.configure(state="disabled")
+        self._poll_queue()
+        self._monitor_threads()
+
+    def _poll_queue(self):
+        try:
+            while True:
+                msg = self.log_queue.get_nowait()
+                self.log_text.configure(state="normal")
+                self.log_text.insert("end", msg + "\n")
+                self.log_text.see("end")
+                self.log_text.configure(state="disabled")
+        except Empty:
+            pass
+        if self.en_progreso and self.winfo_exists():
+            self._poll_after_id = self.after(50, self._poll_queue)
+
+    def _monitor_threads(self):
+        vivos = any(t.is_alive() for t in self.threads)
+        if vivos:
+            self._monitor_after_id = self.after(150, self._monitor_threads)
+            return
+        # finalizó
+        self.en_progreso = False
+        self.btn_iniciar.configure(state="normal")
+        self._log("Todos los hilos finalizaron.")
+        self._log("Proceso completado.")
+        try:
+            self.master.refrescarTabla()
+        except Exception:
+            pass
+
+    def _on_close(self):
+        if self.en_progreso:
+            messagebox.showwarning("Cálculo en curso", "Espere a que finalice el cálculo antes de cerrar.")
+            return
+        if self._poll_after_id:
+            try:
+                self.after_cancel(self._poll_after_id)
+            except Exception:
+                pass
+        if self._monitor_after_id:
+            try:
+                self.after_cancel(self._monitor_after_id)
+            except Exception:
+                pass
+        self.destroy()
+
+
 if __name__ == "__main__":
     VentanaPrincipal().mainloop()
