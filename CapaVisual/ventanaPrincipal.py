@@ -19,7 +19,7 @@ import pandas as pd
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-##Clase para la ventana
+##Clase para la ventana principal 
 class VentanaPrincipal(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -419,7 +419,7 @@ class VentanaPrincipal(ctk.CTk):
                       command=lambda: render(sistema.reporte_por_genero(), "Reporte por género", "genero")).pack(side="left", padx=6, pady=8)
         ctk.CTkButton(btns, text="Cerrar", width=120, command=ventana.destroy).pack(side="right", padx=6, pady=8)
 
-
+##Ventana para calculo de IMC, con hilos y consola de logs
     def abrirCalculoIMC(self):
         if self._ventana_calc and self._ventana_calc.winfo_exists():
             self._ventana_calc.lift()
@@ -502,12 +502,12 @@ class VentanaPrincipal(ctk.CTk):
         else:
             messagebox.showwarning("Sin selección", "No se seleccionó ninguna carpeta. La ruta del sistema no se ha cambiado.")
         
-# Ventana auxiliar REQ3-REQ5: cálculo de IMC con hilos y consola de logs
+# Ventana cálculo de IMC con hilos y consola de logs
 class VentanaCalculoIMC(ctk.CTkToplevel):
     def __init__(self, master: VentanaPrincipal):
         super().__init__(master)
         self.master = master
-        self.title("Calcular IMC (multihilo)")
+        self.title("Calcular IMC - Consola de logs")
         self.geometry("620x420")
         self.resizable(False, False)
         self.log_queue: Queue[str] = Queue()
@@ -541,6 +541,8 @@ class VentanaCalculoIMC(ctk.CTkToplevel):
         self.log_queue.put(msg)
         self._poll_queue()
 
+
+##CALCULO DE IMC CON HILOS, divide el trabajo en segmentos según cantidad de hilos
     def iniciar_calculo(self):
         if self.en_progreso:
             return
@@ -561,6 +563,7 @@ class VentanaCalculoIMC(ctk.CTkToplevel):
             self.hilos_var.set(str(n_hilos))
             messagebox.showinfo("Ajuste de hilos", f"Se ajustó la cantidad de hilos a {n_hilos} (cantidad de registros).")
 
+##El residuo se pasa al ultimo
         base = total // n_hilos
         residuo = total % n_hilos
         segmentos = []
@@ -595,9 +598,6 @@ class VentanaCalculoIMC(ctk.CTkToplevel):
         self._monitor_threads()
 
     def _poll_queue(self):
-        # Mostrar mensajes en lotes pequeños para que se perciba el avance intercalado
-        # Consumir y volcar todos los mensajes disponibles ahora mismo.
-        # Esto muestra la intercalación real según el scheduler del SO.
         try:
             while True:
                 msg = self.log_queue.get_nowait()

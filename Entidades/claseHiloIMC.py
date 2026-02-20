@@ -25,9 +25,9 @@ class HiloIMC(threading.Thread):
 
     def run(self):
         self.log_queue.put(f"{self.name} inicia (registros {len(self.indices_segmento)}).")
-        for idx in self.indices_segmento:
+        for indices in self.indices_segmento:
             try:
-                persona = self.lista_personas[idx]
+                persona = self.lista_personas[indices]
             except Exception:
                 continue
             imc = self.calcular_imc_fn(persona.peso, persona.estatura)
@@ -40,6 +40,6 @@ class HiloIMC(threading.Thread):
                 persona.imcCalculado = imc
                 persona.estado = estado
             self.log_queue.put(f"{self.name} procesó ID {persona.id} -> IMC {imc:.2f}, {estado}")
-            # Ceder CPU para que otros hilos también avancen y los logs se intercalen
-            time.sleep(0.02)
+            ## Pa ceder CPU para que otros hilos también avancen y los logs se intercalen
+            time.sleep(1)
         self.log_queue.put(f"{self.name} termina.")
